@@ -1,7 +1,7 @@
 #include <Stepper.h>
-//#include "Adafruit_VL53L0X.h"
-//#include <VL53L0X.h>
-//Adafruit_VL53L0X rangeSensor = Adafruit_VL53L0X();
+// #include "Adafruit_VL53L0X.h"
+
+// Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 // Number of steps to do one full plate rotation
 const int STEPS_PER_ROTATION = 2000; //2000
@@ -12,10 +12,14 @@ const int stepsPerHeightIncrement = 200;
 
 // Ports attribution
 Stepper myHeightStepper(STEPS_PER_ROTATION, 0, 1, 2, 3);
+// 20cm height
 const int endstopButtonTop = 4;
 const int endstopButtonBottom = 5;
 const int toggleStartButton = 6;
 Stepper myRotationStepper(STEPS_PER_ROTATION, 7, 8, 9, 10);
+// // 11 and 12 are for range
+// const int rangeSDA = 11;
+// const int rangeSCL = 12;
 String FILENAME = "./pointcloud";
 int rotation_step_counter = 0;
 int height_step_counter = 0;
@@ -24,7 +28,9 @@ void setup() {
   pinMode(toggleStartButton, INPUT);
   pinMode(endstopButtonTop, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);  
+
   Serial.begin(9600);
+  Serial1.begin(9600);            // initialize UART with baud rate of 9600 for Arduino Nano
 
 }
 
@@ -32,10 +38,6 @@ void loop() {
   // Wait until button push to start scan
 
 	static bool isRunning = false;
-
-
-  // DEGUG CORNER
-  // END DEGUG CORNER
 
 	if (!isRunning && startPressed()) {
     // Create a new point cloud file at FILENAME
@@ -87,22 +89,36 @@ void stop(){
 
 void scan_data_point(){
   // TODO
+  delay(500);
   Serial.print("Scanning...");
-  // get distance from sensor distance
-//  VL53L0X_RangingMeasurementData_t measure;
-//    
-//  Serial.print("Reading a measurement... ");
-//  rangeSensor.rangingTest(&measure, false); // pass in 'true' to get debug data printout!
-//
-//  if (measure.RangeStatus != 4) {  // phase failures have incorrect data
-//    Serial.print("Distance (mm): "); Serial.println(measure.RangeMilliMeter);
-//  } else {
-//    Serial.println(" out of range ");
-//  }
-    
-//  delay(100);
-  // save distance to point cloud file   
-  delay(1000);
+  
+  while (Serial1.available() >= 0) {
+    // start range computation
+    Serial1.println('1');
+    int value = Serial1.parseInt();
+    int wait_count=1;
+    // Wait for a response that is not 0
+    while(value==0){
+      Serial.print("\t Skipped ");
+      Serial.print(wait_count);
+      Serial.print(": ");
+      Serial.println(value);
+      value = Serial1.parseInt();
+      wait_count++;
+      if (wait_count>=10) break;
+    }
+
+    if(value>5 && value<300){
+      Serial.print("Result: ");
+      Serial.println(value);
+      break;
+    } else {
+      Serial.print("Ignored result: ");
+      Serial.println(value);
+      break;
+    }
+  }
+  delay(500);
 }
 
 bool reachedFullRotation(){
@@ -111,6 +127,7 @@ bool reachedFullRotation(){
     return true;
   }
   return false;
+  // return true;
 }
 
 void rotation_step(){
