@@ -4,9 +4,11 @@
 // Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 // Number of steps to do one full plate rotation
-const int STEPS_PER_ROTATION = 2000; //2000
+const int STEPS_PER_ROTATION = 2000;
 // Number of steps to rotate the plate to the next scan point
-const int stepsPerRotationIncrement = STEPS_PER_ROTATION/16;
+// there are actually 32*63.68395 steps per revolution = 2037.8864 ~ 2038 steps!
+const int Actual_STEPS_PER_ROTATION = 2048;
+const int stepsPerRotationIncrement = Actual_STEPS_PER_ROTATION/90;
 // Number of steps to raise the sensor to the next scan level
 const int stepsPerHeightIncrement = 200;
 
@@ -23,6 +25,8 @@ Stepper myRotationStepper(STEPS_PER_ROTATION, 7, 8, 9, 10);
 String FILENAME = "./pointcloud";
 int rotation_step_counter = 0;
 int height_step_counter = 0;
+bool partial_empty_tour = true;
+bool empty_tour = false;
 
 void setup() {
   pinMode(toggleStartButton, INPUT);
@@ -44,14 +48,14 @@ void loop() {
 		isRunning = true;
     digitalWrite(LED_BUILTIN, LOW);
     Serial.println("Starting...");
-    delay(1000);
+    delay(500);
 	}
 
-	if (isRunning && (startPressed()||stopPressed())) {
+	if (isRunning && (startPressed()||stopPressed()||empty_tour)) {
 		isRunning = false;
     digitalWrite(LED_BUILTIN, HIGH);
     Serial.println("Stopping...");
-    delay(2000);
+    delay(500);
     stop();
 	}
 
@@ -59,6 +63,8 @@ void loop() {
 		doStuff();
 	}
 }
+
+//******************* BUTTONS *******************
 
 bool startPressed() {
 // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
@@ -75,6 +81,8 @@ bool bottomEndstopPressed() {
   return digitalRead(endstopButtonBottom)== HIGH;
 }
 
+//******************* ACTIVATIONS *******************
+
 void doStuff(){
   scan_data_point();
   rotation_step();
@@ -87,8 +95,9 @@ void stop(){
   reset();
 }
 
+//******************* SCANNING *******************
+
 void scan_data_point(){
-  // TODO
   delay(500);
   Serial.print("Scanning...");
   
@@ -108,9 +117,10 @@ void scan_data_point(){
       if (wait_count>=10) break;
     }
 
-    if(value>5 && value<300){
+    if(value>100 && value<300){
       Serial.print("Result: ");
       Serial.println(value);
+      partial_empty_tour = false;
       break;
     } else {
       Serial.print("Ignored result: ");
@@ -118,21 +128,22 @@ void scan_data_point(){
       break;
     }
   }
-  delay(500);
+  delay(200);
 }
 
+//******************* STEPPER MOTORS *******************
+
 bool reachedFullRotation(){
-  if (rotation_step_counter >= STEPS_PER_ROTATION){
+  if (rotation_step_counter >= Actual_STEPS_PER_ROTATION){
     rotation_step_counter = 0;
     return true;
   }
   return false;
-  // return true;
 }
 
 void rotation_step(){
   // do one rotation step
-  for(int i=0; i<stepsPerHeightIncrement; i++){
+  for(int i=0; i<stepsPerRotationIncrement; i++){
     myRotationStepper.step(1);
     rotation_step_counter++;
     delay(5);
@@ -151,7 +162,10 @@ void height_step(){
   }
   Serial.print("Height steps:");
   Serial.println(height_step_counter);
+  if(partial_empty_tour) empty_tour=true;
 }
+
+//******************* WIFI *******************
 
 void transmit_file(){
   // TODO
@@ -164,9 +178,9 @@ void transmit_file(){
   delay(2000);
 }
 
+//******************* RESET *******************
+
 void reset(){
-  // TODO
-  // rotation_step_counter = 0
   // do negative hight step until height_step_counter = 0
   // go back to waiting
 
@@ -175,10 +189,8 @@ void reset(){
     myHeightStepper.step(-1);
     delay(5);
   }
-  for(; rotation_step_counter < STEPS_PER_ROTATION; rotation_step_counter++){
+  for(; rotation_step_counter < Actual_STEPS_PER_ROTATION; rotation_step_counter++){
     myRotationStepper.step(1);
-    Serial.print("Roration steps:");
-    Serial.println(rotation_step_counter);
     delay(5);
   }
   rotation_step_counter = 0;

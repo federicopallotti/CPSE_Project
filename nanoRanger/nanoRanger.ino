@@ -2,16 +2,18 @@
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
-int RANGE = 40;
+int RANGE = 20;
 
 void setup() {
   Serial.begin(115200);
 
+  Serial.begin(9600);               // initialize serial communication at 9600 bits per second:
+  Serial1.begin(9600);            // initialize UART with baud rate of 9600
   delay(1500);
 
   Serial.println("test");
   // wait until serial port opens for native USB devices
-  while (! Serial) {
+  while (! Serial1) {
     delay(1);
   }
   Serial.println("test 2");
@@ -24,8 +26,6 @@ void setup() {
   // power 
   Serial.println(F("VL53L0X API Simple Ranging example\n\n")); 
   
-  Serial.begin(9600);               // initialize serial communication at 9600 bits per second:
-  Serial1.begin(9600);            // initialize UART with baud rate of 9600
 }
 
 
@@ -52,11 +52,10 @@ void loop() {
         tepm_sum += measure.RangeMilliMeter;
         counter++;
       }
-      delay(200);
+      delay(20);
     }
     Serial1.println((int)tepm_sum/RANGE);
     Serial.println((int)tepm_sum/RANGE);
-//    delay(1000);
     
   }
   Serial.println("No serial available");
