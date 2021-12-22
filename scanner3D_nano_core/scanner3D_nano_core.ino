@@ -1,7 +1,7 @@
 #include <Adafruit_VL53L0X.h>
 
 Adafruit_VL53L0X lox = Adafruit_VL53L0X();
-int number_of_measures = 20;
+int number_of_measures = 10;
 
 void setup() {
   Serial.begin(115200);

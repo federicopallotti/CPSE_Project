@@ -2,7 +2,7 @@
 
 // Number of steps to do one full plate rotation
 const int stepper_speed = 2000;
-const int steps_per_rotation = 2048;
+const int steps_per_rotation = 2025; // 2048 best for points_per_rotation=90
 
 
 const int points_per_rotation = 90;
@@ -26,19 +26,20 @@ Stepper myRotationStepper(stepper_speed, 7, 8, 9, 10);
 // const int rangeSCL = 12;
 struct datapoint
 {
-  int distance;
-  int angle;  
-  int height;   
+  int x;
+  int y;  
+  int z;   
 };
 
 struct datapoint slice [91];  
-
-// PrintWriter output;
 
 int rotation_step_counter = 0;
 int height_step_counter = 0;
 bool partial_empty_tour = true;
 bool empty_tour = false;
+
+// Sensor-plate center distance
+int fixed_dist = 191;
 
 void setup() {
   pinMode(toggleStartButton, INPUT);
@@ -116,7 +117,7 @@ void stop(){
 
 void scan_data_point(){
   // Delay to compensate for the rotation wobble of the rotation plate  
-  delay(500);
+  delay(200);
   
   while (Serial1.available() >= 0) {
     // empty Serial1 until you see "0"
@@ -141,11 +142,16 @@ void scan_data_point(){
       Serial.println(value);
       partial_empty_tour = false;
       
+      //output equations
+      int output_x = - (fixed_dist - value)*sin(get_angle());
+      int output_y = get_height();
+      int output_z = (fixed_dist - value)*cos(get_angle());
+
       // Store the data as a datapoint struct in the slice
       int index = rotation_step_counter/stepsPerRotationIncrement;
-      slice[index].height = get_height();
-      slice[index].angle = get_angle();
-      slice[index].distance = value;
+      slice[index].x = output_x;
+      slice[index].y = output_y;
+      slice[index].z = output_z;
       break;
 
     } else {
@@ -168,6 +174,8 @@ int get_angle(){
 int get_height (){
   return (height_step_counter*143/10000);
 }
+
+
 
 
 //******************* STEPPER MOTORS *******************
@@ -218,13 +226,13 @@ void send_slice(){
   Serial.println("$");
   for(int i = 0; i < 90; i++)    {
     // TODO: check if it's not missing a point
-    if (slice[i].angle!=0 && slice[i].distance!=0){
+    if (slice[i].x!=0 && slice[i].z!=0){
       delay(150);
-      Serial.print(slice[i].height);
+      Serial.print(slice[i].x);
       Serial.print(" ");
-      Serial.print(slice[i].angle);
+      Serial.print(slice[i].y);
       Serial.print(" ");
-      Serial.println(slice[i].distance);
+      Serial.println(slice[i].z);
     }
   }
   delay(150);
@@ -233,10 +241,10 @@ void send_slice(){
   delay(150);
   // Reset array
   for (int i = 0; i < 90; i++){
-    if (slice[i].angle == 0 && slice[i].distance == 0 && slice[i].height == 0) break;
-    slice[i].height = 0;
-    slice[i].angle = 0;
-    slice[i].distance = 0;
+    if (slice[i].x == 0 && slice[i].y == 0 && slice[i].z == 0) break;
+    slice[i].x = 0;
+    slice[i].y = 0;
+    slice[i].z = 0;
   }
 }
 
