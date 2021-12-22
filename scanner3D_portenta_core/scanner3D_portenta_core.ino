@@ -2,7 +2,7 @@
 
 // Number of steps to do one full plate rotation
 const int stepper_speed = 2000;
-const int steps_per_rotation = 2025; // 2048 best for points_per_rotation=90
+const int steps_per_rotation = 2048; // 2048 is standard, 2025 for light objects
 
 
 const int points_per_rotation = 90;
